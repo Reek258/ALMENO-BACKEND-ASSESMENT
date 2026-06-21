@@ -1,0 +1,16 @@
+flowchart TD
+    Client["Client<br/>curl / browser"]
+    API["FastAPI API<br/>upload / status / results / list"]
+    Redis["Redis queue<br/>RQ job broker"]
+    Worker["RQ worker<br/>clean -> detect anomalies -> classify -> summarise"]
+    PG["PostgreSQL<br/>Job, Transaction, JobSummary"]
+    Gemini["Gemini API<br/>batched classification + narrative"]
+
+    Client -- "POST /jobs/upload" --> API
+    Client -- "GET /jobs/:id/status, /results" --> API
+    API -- "insert Job (status=pending)" --> PG
+    API -- "enqueue process_job" --> Redis
+    Redis -- "dequeue" --> Worker
+    Worker -- "batched LLM calls, retry+backoff" --> Gemini
+    Worker -- "insert Transactions + JobSummary" --> PG
+    API -- "read Job/Transaction/JobSummary" --> PG
